@@ -47,7 +47,13 @@ export default function SigninPage() {
   return (
     <section className="section stack" style={{ maxWidth: 480, margin: '0 auto' }}>
       <h1>Sign In</h1>
-      <div className="card p-6 stack gap-4" aria-live="polite">
+      <div
+        className="card p-6 stack gap-4"
+        aria-live="polite"
+        onKeyDown={e => {
+          if (e.ctrlKey && e.key === 'Enter' && !busy && valid) submit();
+        }}
+      >
         <label className="stack gap-2">
           <span className="muted">Email</span>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" />
