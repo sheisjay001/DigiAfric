@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getPool, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
 import bcrypt from 'bcryptjs';
 import { checkRate, keyFromHeaders } from '../../../../lib/rate';
+import { logAudit } from '../../../../lib/audit';
 
 const schema = z.object({
   email: z.string().email(),
@@ -39,6 +40,11 @@ export async function POST(request: Request) {
     const sessionId = crypto.randomUUID();
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await p.query('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)', [sessionId, user.id, expires]);
+    
+    // Audit Log
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    await logAudit(user.id, 'signin', { email }, ip);
+
     const res = NextResponse.json({ ok: true, id: user.id });
     res.cookies.set('session', sessionId, {
       httpOnly: true,

@@ -125,6 +125,7 @@ export default function Header() {
           )}
         </div>
       </div>
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
     </header>
   );
 }

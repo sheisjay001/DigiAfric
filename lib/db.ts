@@ -79,3 +79,17 @@ export async function ensureProfilesTable() {
     )
   `);
 }
+
+export async function ensureProgressTable() {
+  const p = getPool();
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS user_progress (
+      user_id VARCHAR(36) NOT NULL,
+      track_id VARCHAR(64) NOT NULL,
+      task_id VARCHAR(64) NOT NULL,
+      completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, track_id, task_id),
+      INDEX(user_id)
+    )
+  `);
+}

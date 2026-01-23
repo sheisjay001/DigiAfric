@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Reveal from '../components/Reveal';
+import { EmptyState } from '../components/EmptyState';
 
 type Artifact = {
   id: string;
@@ -22,17 +23,8 @@ export default function Dashboard() {
     const p = JSON.parse(localStorage.getItem('learnerProfile') || 'null');
     setProfile(p);
 
-    // Mock artifacts
-    setArtifacts([
-      {
-        id: 'cert-001',
-        title: 'Customer Support AI Specialist',
-        date: '2024-05-15',
-        type: 'capstone',
-        verified: true,
-        link: '#'
-      }
-    ]);
+    // Mock artifacts - Empty for now to show EmptyState
+    // setArtifacts([]);
   }, []);
 
   return (
@@ -112,47 +104,42 @@ export default function Dashboard() {
         </div>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-          {artifacts.map(art => (
-            <div key={art.id} style={{ 
-              border: '1px solid var(--border)', 
-              borderRadius: 'var(--radius-sm)', 
-              padding: '1.25rem',
-              background: 'var(--surface)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <span className="badge" style={{ 
-                  background: art.verified ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-hover)', 
-                  color: art.verified ? 'var(--success)' : 'var(--muted)',
-                  borderColor: 'transparent'
-                }}>
-                  {art.verified ? 'VERIFIED' : 'PENDING'}
-                </span>
-                <span className="muted" style={{ fontSize: '0.8rem' }}>{art.date}</span>
-              </div>
-              <h4 style={{ margin: '0.5rem 0', fontSize: '1.1rem' }}>{art.title}</h4>
-              <div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '1.25rem' }}>
-                {art.type === 'capstone' ? 'Capstone Project' : 'Challenge Submission'}
-              </div>
-              <a href={art.link} className="btn btn-sm" style={{ width: '100%', border: '1px solid var(--border)' }}>View Credential</a>
+          {artifacts.length === 0 ? (
+            <div style={{ gridColumn: '1/-1' }}>
+              <EmptyState
+                title="No projects yet"
+                description="Complete capstone projects to build your portfolio and get hired."
+                actionLabel="Start a Project"
+                actionLink="/project/submit"
+                icon={<span style={{ fontSize: '3rem' }}>🏆</span>}
+              />
             </div>
-          ))}
-          
-          {/* Empty State Placeholder */}
-          <div style={{ 
-            border: '1px dashed var(--border)', 
-            borderRadius: 'var(--radius-sm)', 
-            padding: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0.6,
-            minHeight: 180
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏆</div>
-              <div className="muted" style={{ fontSize: '0.9rem' }}>Complete capstones to earn badges</div>
-            </div>
-          </div>
+          ) : (
+            artifacts.map(art => (
+              <div key={art.id} style={{ 
+                border: '1px solid var(--border)', 
+                borderRadius: 'var(--radius-sm)', 
+                padding: '1.25rem',
+                background: 'var(--surface)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <span className="badge" style={{ 
+                    background: art.verified ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-hover)', 
+                    color: art.verified ? 'var(--success)' : 'var(--muted)',
+                    borderColor: 'transparent'
+                  }}>
+                    {art.verified ? 'VERIFIED' : 'PENDING'}
+                  </span>
+                  <span className="muted" style={{ fontSize: '0.8rem' }}>{art.date}</span>
+                </div>
+                <h4 style={{ margin: '0.5rem 0', fontSize: '1.1rem' }}>{art.title}</h4>
+                <div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '1.25rem' }}>
+                  {art.type === 'capstone' ? 'Capstone Project' : 'Challenge Submission'}
+                </div>
+                <a href={art.link} className="btn btn-sm" style={{ width: '100%', border: '1px solid var(--border)' }}>View Credential</a>
+              </div>
+            ))
+          )}
         </div>
       </Reveal>
     </div>

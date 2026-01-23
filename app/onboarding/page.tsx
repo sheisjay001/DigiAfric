@@ -22,6 +22,42 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
+  const submit = useCallback((e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setError(null);
+    setFieldErrors({});
+    const schema = z.object({
+      handle: z.string().trim().min(2).max(32).regex(/^[a-z0-9-]+$/i),
+      goals: z.string().trim().min(3).max(500),
+      hours: z.number().int().min(1).max(60),
+      prior: z.string().trim().min(0).max(500),
+      track: z.enum(['customer-support','research-intelligence','virtual-assistant','no-code-builder','content-ops'])
+    });
+    const parsed = schema.safeParse({ handle, goals, hours, prior, track });
+    if (!parsed.success) {
+      setError('Please fix the highlighted fields.');
+      const f = parsed.error.flatten().fieldErrors;
+      const errs: Record<string, string> = {};
+      if (f.handle?.length) errs.handle = 'Handle must be 2-32 chars, letters/numbers/dashes.';
+      if (f.goals?.length) errs.goals = 'Provide your goals (3-500 chars).';
+      if (f.hours?.length) errs.hours = 'Hours must be between 1 and 60.';
+      if (f.prior?.length) errs.prior = 'Describe prior knowledge (optional, up to 500 chars).';
+      if (f.track?.length) errs.track = 'Select a valid track.';
+      setFieldErrors(errs);
+      const order = ['handle','goals','hours','track','prior'];
+      const first = order.find((k) => errs[k]);
+      if (first === 'handle') handleRef.current?.focus();
+      else if (first === 'goals') goalsRef.current?.focus();
+      else if (first === 'hours') hoursRef.current?.focus();
+      else if (first === 'track') trackRef.current?.focus();
+      else if (first === 'prior') priorRef.current?.focus();
+      return;
+    }
+    const profile = parsed.data;
+    localStorage.setItem('learnerProfile', JSON.stringify(profile));
+    router.push(`/track/${profile.track}`);
+  }, [handle, goals, hours, prior, track, router]);
+
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('onboardingDraft') || 'null');
@@ -68,42 +104,6 @@ export default function Onboarding() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [step, submit]);
-
-  const submit = useCallback((e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setError(null);
-    setFieldErrors({});
-    const schema = z.object({
-      handle: z.string().trim().min(2).max(32).regex(/^[a-z0-9-]+$/i),
-      goals: z.string().trim().min(3).max(500),
-      hours: z.number().int().min(1).max(60),
-      prior: z.string().trim().min(0).max(500),
-      track: z.enum(['customer-support','research-intelligence','virtual-assistant','no-code-builder','content-ops'])
-    });
-    const parsed = schema.safeParse({ handle, goals, hours, prior, track });
-    if (!parsed.success) {
-      setError('Please fix the highlighted fields.');
-      const f = parsed.error.flatten().fieldErrors;
-      const errs: Record<string, string> = {};
-      if (f.handle?.length) errs.handle = 'Handle must be 2-32 chars, letters/numbers/dashes.';
-      if (f.goals?.length) errs.goals = 'Provide your goals (3-500 chars).';
-      if (f.hours?.length) errs.hours = 'Hours must be between 1 and 60.';
-      if (f.prior?.length) errs.prior = 'Describe prior knowledge (optional, up to 500 chars).';
-      if (f.track?.length) errs.track = 'Select a valid track.';
-      setFieldErrors(errs);
-      const order = ['handle','goals','hours','track','prior'];
-      const first = order.find((k) => errs[k]);
-      if (first === 'handle') handleRef.current?.focus();
-      else if (first === 'goals') goalsRef.current?.focus();
-      else if (first === 'hours') hoursRef.current?.focus();
-      else if (first === 'track') trackRef.current?.focus();
-      else if (first === 'prior') priorRef.current?.focus();
-      return;
-    }
-    const profile = parsed.data;
-    localStorage.setItem('learnerProfile', JSON.stringify(profile));
-    router.push(`/track/${profile.track}`);
-  }, [handle, goals, hours, prior, track, router]);
 
   return (
     <section className="section">

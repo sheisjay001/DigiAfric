@@ -5,30 +5,60 @@ import Link from 'next/link';
 import { CURRICULUM, Task } from '../../data/curriculum';
 import CapstoneProject from './CapstoneProject';
 import Reveal from './Reveal';
+import { useToast } from './ToastProvider';
 
 export default function TrackView({ trackId }: { trackId: string }) {
   const track = CURRICULUM[trackId];
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
-    const saved = localStorage.getItem(`track_progress_${trackId}`);
-    if (saved) {
-      try {
-        setCompletedIds(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse progress', e);
+    (async () => {
+      // 1. Load local
+      const saved = localStorage.getItem(`track_progress_${trackId}`);
+      let localIds: string[] = [];
+      if (saved) {
+        try { localIds = JSON.parse(saved); } catch {}
       }
-    }
-    setHydrated(true);
+      
+      // 2. Load server
+      try {
+        const res = await fetch(`/api/track/progress?trackId=${trackId}`);
+        const data = await res.json();
+        if (data.ok && data.progress.length > 0) {
+          // Merge or prefer server? Let's union them for now to not lose data
+          const merged = Array.from(new Set([...localIds, ...data.progress]));
+          setCompletedIds(merged);
+        } else {
+          setCompletedIds(localIds);
+        }
+      } catch {
+        setCompletedIds(localIds);
+      }
+      setHydrated(true);
+    })();
   }, [trackId]);
 
-  const toggleTask = (taskId: string) => {
-    const next = completedIds.includes(taskId)
+  const toggleTask = async (taskId: string) => {
+    const isCompleted = completedIds.includes(taskId);
+    const next = isCompleted
       ? completedIds.filter(id => id !== taskId)
       : [...completedIds, taskId];
+    
     setCompletedIds(next);
     localStorage.setItem(`track_progress_${trackId}`, JSON.stringify(next));
+
+    // Sync to server
+    try {
+      await fetch('/api/track/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId, taskId, completed: !isCompleted })
+      });
+    } catch (e) {
+      console.error('Failed to sync progress', e);
+    }
   };
 
   const stats = useMemo(() => {

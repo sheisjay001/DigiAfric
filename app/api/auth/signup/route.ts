@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { getPool, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
 import bcrypt from 'bcryptjs';
 import { checkRate, keyFromHeaders } from '../../../../lib/rate';
+import { sanitize } from '../../../../lib/security';
+import { logAudit } from '../../../../lib/audit';
 
 const schema = z.object({
   email: z.string().email(),
@@ -26,6 +28,10 @@ export async function POST(request: Request) {
     const parsed = schema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
     const { email, password, name } = parsed.data;
+    
+    // Sanitize name
+    const safeName = name ? sanitize(name) : null;
+
     if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_PASSWORD || !process.env.DB_NAME) {
       return NextResponse.json({ ok: false, error: 'db_env' }, { status: 500 });
     }
@@ -37,10 +43,15 @@ export async function POST(request: Request) {
     if (existing) return NextResponse.json({ ok: false, error: 'exists' }, { status: 409 });
     const id = crypto.randomUUID();
     const hash = await bcrypt.hash(password, 10);
-    await p.query('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)', [id, email, hash, name || null]);
+    await p.query('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)', [id, email, hash, safeName]);
     const sessionId = crypto.randomUUID();
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await p.query('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)', [sessionId, id, expires]);
+    
+    // Audit Log
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    await logAudit(id, 'signup', { email }, ip);
+
     const res = NextResponse.json({ ok: true, id });
     res.cookies.set('session', sessionId, {
       httpOnly: true,

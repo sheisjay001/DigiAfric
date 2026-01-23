@@ -42,12 +42,20 @@ export async function POST(request: Request) {
   if (!s) return NextResponse.json({ ok: false, error: 'auth' }, { status: 401 });
   const body = await request.json();
   const { avatar_url, bio, timezone, location, preferred_roles } = body || {};
+
+  // Sanitize inputs
+  const safeBio = sanitize(bio);
+  const safeLocation = sanitize(location);
+  const safeTimezone = sanitize(timezone);
+  // Avatar URL should be validated as a URL, but for now we'll just sanitize it to be safe from script injection
+  const safeAvatar = sanitize(avatar_url);
+
   await p.query(
     `INSERT INTO profiles (user_id, avatar_url, bio, timezone, location, preferred_roles)
      VALUES (?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE avatar_url=VALUES(avatar_url), bio=VALUES(bio), timezone=VALUES(timezone),
        location=VALUES(location), preferred_roles=VALUES(preferred_roles)`,
-    [s.user_id, avatar_url || null, bio || null, timezone || null, location || null, preferred_roles || null]
+    [s.user_id, safeAvatar || null, safeBio || null, safeTimezone || null, safeLocation || null, preferred_roles || null]
   );
   return NextResponse.json({ ok: true });
 }

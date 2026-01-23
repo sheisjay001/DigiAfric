@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { z } from 'zod';
+import { checkRate, keyFromHeaders } from '../../../lib/rate';
+import { sanitize } from '../../../lib/security';
 
 const dataDir = path.join(process.cwd(), 'data');
 const filePath = path.join(dataDir, 'portfolio.json');
@@ -30,19 +32,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') || 'local';
-  const key = `rl_portfolio_${ip}`;
-  // @ts-ignore
-  globalThis.__rate__ = globalThis.__rate__ || new Map<string, { count: number; ts: number }>();
-  // @ts-ignore
-  const rl = globalThis.__rate__ as Map<string, { count: number; ts: number }>;
-  const now = Date.now();
-  const rec = rl.get(key);
-  if (!rec || now - rec.ts > 5 * 60 * 1000) rl.set(key, { count: 1, ts: now });
-  else {
-    if (rec.count > 120) return NextResponse.json({ ok: false }, { status: 429 });
-    rl.set(key, { count: rec.count + 1, ts: rec.ts });
+  const rkey = keyFromHeaders('portfolio_post', request.headers);
+  const { allowed, retryAfterMs } = checkRate(rkey, 10, 60 * 60 * 1000); // 10 requests per hour
+  if (!allowed) {
+    return NextResponse.json(
+      { ok: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': Math.ceil(retryAfterMs / 1000).toString() } }
+    );
   }
+
   const origin = request.headers.get('origin') || '';
   const site = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   if (origin && !origin.startsWith(site)) {
@@ -59,11 +57,21 @@ export async function POST(request: Request) {
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
+  
   const { handle, artifact } = parsed.data;
+  
+  // Sanitize inputs
+  const safeArtifact = {
+    ...artifact,
+    title: sanitize(artifact.title),
+    description: sanitize(artifact.description),
+    repo: sanitize(artifact.repo)
+  };
+
   const store = await readStore();
   const prev = store[handle] || { artifacts: [], badges: [] };
   const enriched = {
-    ...artifact,
+    ...safeArtifact,
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
   };
