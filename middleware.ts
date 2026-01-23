@@ -2,57 +2,65 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  // Defensive error handling to prevent 500 crashes
+  try {
+    const { pathname } = req.nextUrl;
 
-  // 1. Auth Check: Handle redirects for protected routes
-  const protectedPaths = ['/dashboard', '/onboarding', '/tutor', '/track', '/project/submit', '/account'];
-  const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
-
-  if (isProtected) {
-    const session = req.cookies.get('session')?.value;
-    if (!session) {
-      const url = new URL('/signin', req.url);
-      url.searchParams.set('next', pathname);
-      return NextResponse.redirect(url);
+    // 1. Manual Exclusion (Alternative to matcher to avoid potential regex issues)
+    // Exclude internal Next.js paths, API routes, and static files
+    if (
+      pathname.startsWith('/_next') || 
+      pathname.startsWith('/api') || 
+      pathname === '/favicon.ico' ||
+      pathname === '/robots.txt' ||
+      pathname.endsWith('.png') ||
+      pathname.endsWith('.jpg') ||
+      pathname.endsWith('.svg')
+    ) {
+      return NextResponse.next();
     }
+
+    // 2. Auth Check
+    const protectedPaths = ['/dashboard', '/onboarding', '/tutor', '/track', '/project/submit', '/account'];
+    const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+    if (isProtected) {
+      const session = req.cookies.get('session')?.value;
+      if (!session) {
+        const url = req.nextUrl.clone();
+        url.pathname = '/signin';
+        url.searchParams.set('next', pathname);
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // 3. Response & Headers
+    const res = NextResponse.next();
+
+    // CSRF Token (Simple & Safe)
+    if (!req.cookies.has('csrf_token')) {
+      const token = 'csrf-' + Math.random().toString(36).slice(2);
+      res.cookies.set('csrf_token', token, { 
+        path: '/', 
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+      });
+    }
+
+    // Security Headers
+    res.headers.set('X-Frame-Options', 'DENY');
+    res.headers.set('X-Content-Type-Options', 'nosniff');
+    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    
+    // Simplified CSP to reduce header size/parsing risk
+    const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self';";
+    res.headers.set('Content-Security-Policy', csp);
+
+    return res;
+  } catch (error) {
+    // If anything fails, log and allow request to proceed (Fail Open)
+    console.error('Middleware failed:', error);
+    return NextResponse.next();
   }
-
-  // 2. Prepare Response for non-redirects (add headers)
-  const res = NextResponse.next();
-
-  // 3. CSRF Token
-  if (!req.cookies.has('csrf_token')) {
-    const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    res.cookies.set('csrf_token', token, {
-      httpOnly: false,
-      sameSite: 'lax',
-      path: '/',
-      secure: process.env.NODE_ENV === 'production'
-    });
-  }
-
-  // 4. Security Headers (CSP, etc.)
-  // Minified CSP string to reduce processing overhead
-  const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; block-all-mixed-content; upgrade-insecure-requests;";
-  
-  res.headers.set('Content-Security-Policy', csp);
-  res.headers.set('X-Frame-Options', 'DENY');
-  res.headers.set('X-Content-Type-Options', 'nosniff');
-  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-
-  return res;
 }
 
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
-};
