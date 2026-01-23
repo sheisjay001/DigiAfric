@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getPool, ensureUsersTable, ensureSessionsTable } from '../../../lib/db';
-import { validatePassword } from '../../../lib/security';
-import { logAudit } from '../../../lib/audit';
+import { getPool, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
+import { validatePassword } from '../../../../lib/security';
+import { logAudit } from '../../../../lib/audit';
 import crypto from 'crypto';
 
 function getCookie(req: Request, name: string) {

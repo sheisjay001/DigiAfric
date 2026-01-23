@@ -93,7 +93,7 @@ export default function AccountProfile() {
 
                   <label htmlFor="bio">
                     Bio
-                    <div className="muted" style={{ fontSize: '0.85rem', fontWeight: 400 }}>Tell us about your background and what you're learning.</div>
+                    <div className="muted" style={{ fontSize: '0.85rem', fontWeight: 400 }}>Tell us about your background and what you&apos;re learning.</div>
                   </label>
                   <textarea 
                     id="bio"

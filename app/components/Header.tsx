@@ -3,11 +3,27 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SearchModal } from './SearchModal';
+import { NotificationCenter } from './NotificationCenter';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const pathname = usePathname();
   const [signedIn, setSignedIn] = useState(false);
+
+  // Toggle search with Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   async function signOut() {
     try {
       const csrf = document.cookie.split('; ').find(c => c.startsWith('csrf_token='))?.split('=')[1] || '';
@@ -75,7 +91,14 @@ export default function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="nav desktop-only">
+        <nav className="nav desktop-only" style={{ alignItems: 'center' }}>
+          <button 
+            className="btn btn-ghost" 
+            onClick={() => setShowSearch(true)}
+            style={{ color: 'var(--muted)', fontSize: '0.9rem', padding: '6px 12px', marginRight: '8px' }}
+          >
+            🔍 Search <span style={{ opacity: 0.5, fontSize: '0.8em', marginLeft: 6 }}>Ctrl+K</span>
+          </button>
           {filteredLinks.map((link) =>
             link.href === 'logout' ? (
               <button key="logout" onClick={signOut} className="link">
@@ -91,6 +114,7 @@ export default function Header() {
               </Link>
             )
           )}
+          {signedIn && <NotificationCenter />}
         </nav>
 
         {/* Mobile Toggle */}

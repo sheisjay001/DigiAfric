@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPool, ensureProfilesTable, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
+import { sanitize } from '../../../../lib/security';
 
 function getCookie(req: Request, name: string) {
   const v = req.headers.get('cookie') || '';
