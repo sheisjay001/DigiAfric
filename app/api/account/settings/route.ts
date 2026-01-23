@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { getPool, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
 import { validatePassword } from '../../../../lib/security';
 import { logAudit } from '../../../../lib/audit';

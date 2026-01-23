@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 
 export async function POST(request: Request) {

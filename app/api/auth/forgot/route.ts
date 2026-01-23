@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 import { getPool, ensureUsersTable, ensurePasswordResetsTable } from '../../../../lib/db';
 import { checkRate, keyFromHeaders } from '../../../../lib/rate';

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 import { getPool, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
 import bcrypt from 'bcryptjs';

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { getPool, ensureProfilesTable, ensureUsersTable, ensureSessionsTable } from '../../../../lib/db';
 import { sanitize } from '../../../../lib/security';
 

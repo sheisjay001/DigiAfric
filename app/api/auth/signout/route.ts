@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { getPool, ensureSessionsTable } from '../../../../lib/db';
 
 function getCookie(req: Request, name: string) {
