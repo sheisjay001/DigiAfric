@@ -1,10 +1,38 @@
 import { NextResponse, NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  const { pathname } = req.nextUrl;
+  
+  // Determine if we need to redirect first
+  let res = NextResponse.next();
+  
+  const protectedPaths = ['/dashboard', '/onboarding', '/tutor', '/track', '/project/submit', '/account'];
+  const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+  
+  if (isProtected) {
+    const session = req.cookies.get('session')?.value;
+    if (!session) {
+      const url = new URL('/signin', req.nextUrl.origin);
+      url.searchParams.set('next', pathname);
+      res = NextResponse.redirect(url);
+    }
+  }
+
+  // CSRF Token
   const csrf = req.cookies.get('csrf_token')?.value;
   if (!csrf) {
-    res.cookies.set('csrf_token', crypto.randomUUID(), {
+    // Robust UUID generation
+    let token;
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      token = crypto.randomUUID();
+    } else {
+      token = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+    
+    res.cookies.set('csrf_token', token, {
       httpOnly: false,
       sameSite: 'lax',
       path: '/',
@@ -33,16 +61,6 @@ export function middleware(req: NextRequest) {
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-  const { pathname } = req.nextUrl;
-  const protectedPaths = ['/dashboard', '/onboarding', '/tutor', '/track', '/project/submit', '/account'];
-  const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
-  if (!isProtected) return res;
-  const session = req.cookies.get('session')?.value;
-  if (!session) {
-    const url = new URL('/signin', req.nextUrl.origin);
-    url.searchParams.set('next', pathname);
-    return NextResponse.redirect(url);
-  }
   return res;
 }
 
