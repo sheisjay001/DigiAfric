@@ -2,29 +2,58 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
-  // Check for session cookie
-  const session = req.cookies.get('session')?.value;
+  const { pathname } = req.nextUrl;
 
-  // If no session, redirect to signin
-  if (!session) {
-    const url = new URL('/signin', req.url);
-    url.searchParams.set('next', req.nextUrl.pathname);
-    return NextResponse.redirect(url);
+  // 1. Auth Check: Redirect to signin if accessing protected routes without session
+  const protectedPaths = ['/dashboard', '/onboarding', '/tutor', '/track', '/project/submit', '/account'];
+  const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+
+  if (isProtected) {
+    const session = req.cookies.get('session')?.value;
+    if (!session) {
+      const url = new URL('/signin', req.url);
+      url.searchParams.set('next', pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
-  return NextResponse.next();
+  // 2. Prepare Response
+  const res = NextResponse.next();
+
+  // 3. CSRF Token (Restore this for security)
+  if (!req.cookies.has('csrf_token')) {
+    const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    res.cookies.set('csrf_token', token, {
+      httpOnly: false, // Client needs to read it
+      sameSite: 'lax',
+      path: '/',
+      secure: process.env.NODE_ENV === 'production'
+    });
+  }
+
+  // 4. Security Headers (Restore this for security)
+  // Minified CSP to reduce header size
+  const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; block-all-mixed-content; upgrade-insecure-requests;";
+  
+  res.headers.set('Content-Security-Policy', csp);
+  res.headers.set('X-Frame-Options', 'DENY');
+  res.headers.set('X-Content-Type-Options', 'nosniff');
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  return res;
 }
 
-// ONLY run this middleware on these specific protected paths
-// This avoids running on API routes, static files, or public pages
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/onboarding/:path*',
-    '/tutor/:path*',
-    '/track/:path*',
-    '/project/submit',
-    '/account/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
 
